@@ -77,23 +77,26 @@ const validateInput = (name: keyof UserFormData, value: string | number) => {
   let error = "";
 
   if (name === "name") {
-    if (!value.toString().trim()) error = "Name is required.";
-    else if (value.toString().length < 3) error = "Name must be at least 3 characters.";
+    const nameValue = value?.toString().trim() || "";
+    if (!nameValue) error = "Name is required.";
+    else if (nameValue.length < 3) error = "Name must be at least 3 characters.";
   }
 
   if (name === "email") {
-    if (!value) error = "Email is required.";
-    else if (!/^\S+@\S+\.\S+$/.test(value.toString())) error = "Invalid email format.";
+    const emailValue = value?.toString().trim() || "";
+    if (!emailValue) error = "Email is required.";
+    else if (!/^\S+@\S+\.\S+$/.test(emailValue)) error = "Invalid email format.";
   }
 
   if (name === "age") {
-    const ageValue = Number(value);
+    const ageValue = Number(value) || 0;
     if (!ageValue) error = "Age is required.";
     else if (ageValue < 18) error = "Age must be at least 18.";
   }
 
   setErrors((prev) => ({ ...prev, [name]: error }));
 };
+
 
 // Check if form is valid
 const isFormValid = Object.values(errors).every((error) => !error) &&
