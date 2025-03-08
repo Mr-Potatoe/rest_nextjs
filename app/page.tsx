@@ -38,35 +38,39 @@ export default function UsersPage() {
   const [deleteUserId, setDeleteUserId] = useState<number | null>(null); // Track user for deletion
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false); // Control dialog open state
   const [errors, setErrors] = useState<ValidationErrors>({ name: "", email: "", age: "" });
-
-
-  // Fetch users from API
-  // useEffect(() => {
-  //   fetchUsers();
-  // }, []);
-
+  const [requestCount, setRequestCount] = useState(0);
   const toastId = "request-count-toast"; // Unique toast ID
-
+  
+  const updateRequestCount = async () => {
+    try {
+      const res = await fetch("/api/request-count");
+      const data = await res.json();
+  
+      setRequestCount(data.count); // Update state
+  
+      // Remove old toast and show updated request count
+      toast.dismiss(toastId);
+      toast(`Requests used: ${data.count}/50`, {
+        id: toastId,
+        duration: Infinity, // Persist toast
+      });
+    } catch (error) {
+      console.error("Failed to fetch request count:", error);
+    }
+  };
+  
   const fetchUsers = async (showToast = false) => {
     setIsLoading(true);
     try {
       const res = await fetch("/api/users");
       const data = await res.json();
   
-      if (showToast) toast.success(data.message); // Show success toast when needed
+      if (showToast) toast.success(data.message);
   
       setUsers(data.users);
   
-      // Fetch request count after fetching users
-      const countRes = await fetch("/api/request-count");
-      const countData = await countRes.json();
-  
-      // Remove old toast and show updated request count
-      toast.dismiss(toastId);
-      toast(`Requests used: ${countData.count}/50`, {
-        id: toastId,
-        duration: Infinity, // Make it persist
-      });
+      // 🔥 Update the request count in real-time
+      updateRequestCount();
     } catch (error) {
       console.error("Failed to fetch users:", error);
       toast.error("Failed to fetch users");
@@ -76,6 +80,7 @@ export default function UsersPage() {
   
   useEffect(() => {
     toast(`Requests used: 0/50`, { id: toastId, duration: Infinity });
+    updateRequestCount(); // Fetch initial request count
   
     const isFirstLoad = sessionStorage.getItem("firstLoad");
   
