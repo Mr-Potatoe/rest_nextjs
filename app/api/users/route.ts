@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 // Get all users
 export async function GET() {
   try {
-    const users = await prisma.user.findMany({});
+    const users = await prisma.user.findMany();
     return NextResponse.json({ message: "Users loaded Successfully",
     users},
     { status: 200 });
