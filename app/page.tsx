@@ -45,21 +45,40 @@ export default function UsersPage() {
   //   fetchUsers();
   // }, []);
 
+  const toastId = "request-count-toast"; // Unique toast ID
+
   const fetchUsers = async (showToast = false) => {
     setIsLoading(true);
     try {
       const res = await fetch("/api/users");
       const data = await res.json();
-
-      if (showToast) toast.success(data.message); // Show toast only when needed
-
+  
+      if (showToast) toast.success(data.message); // Show success toast when needed
+  
       setUsers(data.users);
+  
+      // Fetch request count after fetching users
+      const countRes = await fetch("/api/request-count");
+      const countData = await countRes.json();
+  
+      // Remove old toast and show updated request count
+      toast.dismiss(toastId);
+      toast(`Requests used: ${countData.count}/50`, {
+        id: toastId,
+        duration: Infinity, // Make it persist
+      });
     } catch (error) {
       console.error("Failed to fetch users:", error);
       toast.error("Failed to fetch users");
     }
     setIsLoading(false);
   };
+  
+  // Show persistent toast on mount
+  useEffect(() => {
+    toast(`Requests used: 0/50`, { id: toastId, duration: Infinity });
+    fetchUsers(); // Fetch users on mount
+  }, []);
 
   useEffect(() => {
     const isFirstLoad = sessionStorage.getItem("firstLoad");
