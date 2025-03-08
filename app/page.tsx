@@ -261,8 +261,11 @@ const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
                         variant="outline"
                         onClick={() => {
                           setEditUser(user);
-                          setFormData({ name: user.name, email: user.email, age: user.age });
-                        }}
+                          setFormData({
+                            name: user.name || "", 
+                            email: user.email || "", 
+                            age: user.age ?? "", // Ensure age is valid or empty
+                          });                        }}
                       >
                         Edit
                       </Button>
