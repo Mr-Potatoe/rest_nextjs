@@ -211,7 +211,7 @@ const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
           {errors.email && <p className="text-red-500 text-sm">{errors.email}</p>}
 
           {/* Age Input */}
-          <Input name="age" placeholder="Age" type="number" value={formData.age} onChange={handleChange} />
+          <Input name="age" placeholder="Age" type="number" value={formData.age === "" ? "" : Number(formData.age)}  onChange={handleChange} />
           {errors.age && <p className="text-red-500 text-sm">{errors.age}</p>}
 
           {/* Add User Button (Disabled if invalid) */}
@@ -280,7 +280,7 @@ const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
                       <Input name="email" placeholder="Email" value={formData.email} onChange={handleChange} />
                       {errors.email && <p className="text-red-500 text-sm">{errors.email}</p>}
 
-                      <Input name="age" placeholder="Age" type="number" value={formData.age} onChange={handleChange} />
+                      <Input name="age" placeholder="Age" type="number" value={formData.age === "" ? "" : Number(formData.age)}  onChange={handleChange} />
                       {errors.age && <p className="text-red-500 text-sm">{errors.age}</p>}
 
                       {/* Disable button if form is invalid */}
