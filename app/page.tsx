@@ -125,6 +125,11 @@ const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 
     const data = await res.json(); // Parse API response
 
+    if (res.status === 429) {
+      toast.error("Daily request limit reached. Try again tomorrow.");
+      return;
+    }
+
     if (res.ok) {
       toast.success(data.message || (editUser ? "User updated!" : "User added!"));
 
@@ -150,14 +155,16 @@ const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     }
   };
 
-
-
-
   const handleDelete = async () => {
     if (!deleteUserId) return;
 
     try {
       const res = await fetch(`/api/users?id=${deleteUserId}`, { method: "DELETE" });
+
+      if (res.status === 429) {
+        toast.error("Daily request limit reached. Try again tomorrow.");
+        return;
+      }
 
       if (!res.ok) throw new Error("Failed to delete user");
 
