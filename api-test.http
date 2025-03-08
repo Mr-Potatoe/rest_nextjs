@@ -6,8 +6,8 @@ POST http://localhost:3000/api/users
 Content-Type: application/json
 
 {
-  "name": "Alice",
-  "email": "alice@example.com",
+  "name": "Alicez",
+  "email": "alice@exampless.com",
   "age": 30
 }
 

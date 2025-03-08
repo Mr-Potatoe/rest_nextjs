@@ -1,101 +1,324 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import { useEffect, useState } from "react";
+import { toast } from "react-hot-toast";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
+import { Skeleton } from "@/components/ui/skeleton";
+
+interface User {
+  id: number;
+  name: string;
+  email: string;
+  age: number;
+}
+
+// Define types for form data and errors
+interface UserFormData {
+  name: string;
+  email: string;
+  age: number | ""; // Allow empty string for controlled input
+}
+
+interface ValidationErrors {
+  name: string;
+  email: string;
+  age: string;
+}
+
+
+export default function UsersPage() {
+  const [users, setUsers] = useState<User[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [editUser, setEditUser] = useState<User | null>(null);
+  const [isDialogOpen, setIsDialogOpen] = useState(false); // ✅ Track open state
+  const [formData, setFormData] = useState<UserFormData>({ name: "", email: "", age: "" });
+  const [deleteUserId, setDeleteUserId] = useState<number | null>(null); // Track user for deletion
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false); // Control dialog open state
+  const [errors, setErrors] = useState<ValidationErrors>({ name: "", email: "", age: "" });
+
+
+  // Fetch users from API
+  // useEffect(() => {
+  //   fetchUsers();
+  // }, []);
+
+  const fetchUsers = async (showToast = false) => {
+    setIsLoading(true);
+    try {
+      const res = await fetch("/api/users");
+      const data = await res.json();
+
+      if (showToast) toast.success(data.message); // Show toast only when needed
+
+      setUsers(data.users);
+    } catch (error) {
+      console.error("Failed to fetch users:", error);
+      toast.error("Failed to fetch users");
+    }
+    setIsLoading(false);
+  };
+
+  useEffect(() => {
+    const isFirstLoad = sessionStorage.getItem("firstLoad");
+
+    if (!isFirstLoad) {
+      fetchUsers(true); // Show toast only on first load
+      sessionStorage.setItem("firstLoad", "true");
+    } else {
+      fetchUsers(false); // Silent fetch after first load
+    }
+  }, []);
+
+// Validate input on change
+const validateInput = (name: keyof UserFormData, value: string | number) => {
+  let error = "";
+
+  if (name === "name") {
+    if (!value.toString().trim()) error = "Name is required.";
+    else if (value.toString().length < 3) error = "Name must be at least 3 characters.";
+  }
+
+  if (name === "email") {
+    if (!value) error = "Email is required.";
+    else if (!/^\S+@\S+\.\S+$/.test(value.toString())) error = "Invalid email format.";
+  }
+
+  if (name === "age") {
+    const ageValue = Number(value);
+    if (!ageValue) error = "Age is required.";
+    else if (ageValue < 18) error = "Age must be at least 18.";
+  }
+
+  setErrors((prev) => ({ ...prev, [name]: error }));
+};
+
+// Check if form is valid
+const isFormValid = Object.values(errors).every((error) => !error) &&
+  Object.values(formData).every((value) => value.toString().trim() !== "");
+
+// Handle input change with validation
+const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const { name, value } = e.target;
+  const formattedValue = name === "age" ? Number(value) || "" : value; // Ensure age is a number
+  setFormData((prev) => ({ ...prev, [name]: formattedValue }));
+  validateInput(name as keyof UserFormData, formattedValue);
+};
+  // Add or Edit User
+  const handleSubmit = async () => {
+    if (!formData.name || !formData.email || !formData.age) {
+      toast.error("All fields are required!");
+      return;
+    }
+
+    const method = editUser ? "PUT" : "POST";
+    const res = await fetch(`/api/users`, {
+      method,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(editUser ? { id: editUser.id, ...formData } : formData),
+    });
+
+    const data = await res.json(); // Parse API response
+
+    if (res.ok) {
+      toast.success(data.message || (editUser ? "User updated!" : "User added!"));
+
+      if (!editUser && !data.user) {
+        // 🛑 If API doesn't return user, fetch again
+        fetchUsers();
+      } else {
+        // ✅ Update UI with correct user object
+        setUsers((prevUsers) =>
+          editUser
+            ? prevUsers.map((user) =>
+              user.id === editUser.id ? { ...user, ...formData } : user
+            ) // Update user
+            : [...prevUsers, data.user] // Use `data.user` instead of `data`
+        );
+      }
+
+      setEditUser(null);
+      setFormData({ name: "", email: "", age: "" }); // Reset form
+      setIsDialogOpen(false); // ✅ Close dialog after success
+    } else {
+      toast.error(data.error || "Something went wrong!"); // Show error from API
+    }
+  };
+
+
+
+
+  const handleDelete = async () => {
+    if (!deleteUserId) return;
+
+    try {
+      const res = await fetch(`/api/users?id=${deleteUserId}`, { method: "DELETE" });
+
+      if (!res.ok) throw new Error("Failed to delete user");
+
+      const data = await res.json();
+      toast.success(data.message);
+
+      setUsers((prevUsers) => prevUsers.filter((user) => user.id !== deleteUserId)); // Update state without reload
+      setIsDeleteDialogOpen(false); // Close dialog
+    } catch (error) {
+      console.error("Error deleting user:", error);
+      toast.error("Error deleting user. Please try again.");
+    }
+  };
+
+  // Open delete confirmation dialog
+  const confirmDelete = (id: number) => {
+    setDeleteUserId(id);
+    setIsDeleteDialogOpen(true);
+  };
+
+
+
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+    <div className="p-6">
+      <h1 className="text-2xl font-bold mb-4">User Management</h1>
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+      {/* Add User Button */}
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogTrigger asChild>
+          <Button
+            onClick={() => {
+              setEditUser(null); // Clear edit state
+              setFormData({ name: "", email: "", age: "" }); // Reset form
+            }}
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+            Add User
+          </Button>
+        </DialogTrigger>
+
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{editUser ? "Edit User" : "Add User"}</DialogTitle>
+          </DialogHeader>
+
+          {/* Name Input */}
+          <Input name="name" placeholder="Name" value={formData.name} onChange={handleChange} />
+          {errors.name && <p className="text-red-500 text-sm">{errors.name}</p>}
+
+          {/* Email Input */}
+          <Input name="email" placeholder="Email" value={formData.email} onChange={handleChange} />
+          {errors.email && <p className="text-red-500 text-sm">{errors.email}</p>}
+
+          {/* Age Input */}
+          <Input name="age" placeholder="Age" type="number" value={formData.age} onChange={handleChange} />
+          {errors.age && <p className="text-red-500 text-sm">{errors.age}</p>}
+
+          {/* Add User Button (Disabled if invalid) */}
+          <Button onClick={handleSubmit} disabled={!isFormValid}>
+            Add User
+          </Button>
+        </DialogContent>
+      </Dialog>
+
+      {/* Users Table */}
+      <Table className="mt-6">
+        <TableHeader>
+          <TableRow>
+            <TableHead>ID</TableHead>
+            <TableHead>Name</TableHead>
+            <TableHead>Email</TableHead>
+            <TableHead>Age</TableHead>
+            <TableHead>Actions</TableHead>
+          </TableRow>
+        </TableHeader>
+
+        <TableBody>
+          {isLoading ? (
+            // Dynamically show 5 skeleton rows
+            [...Array(5)].map((_, index) => (
+              <TableRow key={index}>
+                <TableCell><Skeleton className="h-4 w-12" /></TableCell>
+                <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                <TableCell><Skeleton className="h-4 w-32" /></TableCell>
+                <TableCell><Skeleton className="h-4 w-12" /></TableCell>
+                <TableCell><Skeleton className="h-6 w-16 rounded-md" /></TableCell>
+              </TableRow>
+            ))
+          ) : users.length > 0 ? (
+            users.map((user) => (
+              <TableRow key={user.id}>
+                <TableCell>{user.id}</TableCell>
+                <TableCell>{user.name}</TableCell>
+                <TableCell>{user.email}</TableCell>
+                <TableCell>{user.age}</TableCell>
+                <TableCell className="space-x-2">
+                  {/* Edit Dialog */}
+                  <Dialog onOpenChange={(open) => !open && setEditUser(null)} open={editUser?.id === user.id}>
+                    <DialogTrigger asChild>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setEditUser(user);
+                          setFormData({ name: user.name, email: user.email, age: user.age });
+                        }}
+                      >
+                        Edit
+                      </Button>
+                    </DialogTrigger>
+
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Edit User</DialogTitle>
+                      </DialogHeader>
+
+                      {/* Edit Form Inputs with Validation Messages */}
+                      <Input name="name" placeholder="Name" value={formData.name} onChange={handleChange} />
+                      {errors.name && <p className="text-red-500 text-sm">{errors.name}</p>}
+
+                      <Input name="email" placeholder="Email" value={formData.email} onChange={handleChange} />
+                      {errors.email && <p className="text-red-500 text-sm">{errors.email}</p>}
+
+                      <Input name="age" placeholder="Age" type="number" value={formData.age} onChange={handleChange} />
+                      {errors.age && <p className="text-red-500 text-sm">{errors.age}</p>}
+
+                      {/* Disable button if form is invalid */}
+                      <Button onClick={handleSubmit} disabled={!isFormValid}>
+                        Update User
+                      </Button>
+                    </DialogContent>
+                  </Dialog>
+
+
+                  {/* Delete Button */}
+                  <Button size="sm" variant="destructive" onClick={() => confirmDelete(user.id)}>
+                    Delete
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))
+          ) : (
+            <TableRow>
+              <TableCell colSpan={5} className="text-center">No users found</TableCell>
+            </TableRow>
+          )}
+        </TableBody>
+      </Table>
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirm Deletion</DialogTitle>
+            <p>Are you sure you want to delete this user?</p>
+          </DialogHeader>
+
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleDelete}>
+              Delete
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
