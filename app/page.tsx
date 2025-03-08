@@ -38,19 +38,15 @@ export default function UsersPage() {
   const [deleteUserId, setDeleteUserId] = useState<number | null>(null); // Track user for deletion
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false); // Control dialog open state
   const [errors, setErrors] = useState<ValidationErrors>({ name: "", email: "", age: "" });
-  const [requestCount, setRequestCount] = useState(0);
   const toastId = "request-count-toast"; // Unique toast ID
-  
+
   const updateRequestCount = async () => {
     try {
       const res = await fetch("/api/request-count");
       const data = await res.json();
   
-      setRequestCount(data.count); // Update state
-  
-      // Remove old toast and show updated request count
-      toast.dismiss(toastId);
-      toast(`Requests used: ${data.count}/50`, {
+      // 🔥 Use `toast.loading()` to update without flickering
+      toast.loading(`Requests used: ${data.count}/50`, {
         id: toastId,
         duration: Infinity, // Persist toast
       });
@@ -69,7 +65,7 @@ export default function UsersPage() {
   
       setUsers(data.users);
   
-      // 🔥 Update the request count in real-time
+      // 🔄 Update request count in real-time
       updateRequestCount();
     } catch (error) {
       console.error("Failed to fetch users:", error);
@@ -79,7 +75,8 @@ export default function UsersPage() {
   };
   
   useEffect(() => {
-    toast(`Requests used: 0/50`, { id: toastId, duration: Infinity });
+    // ✅ Use `toast.loading()` to persist without flickering
+    toast.loading(`Requests used: 0/50`, { id: toastId, duration: Infinity });
     updateRequestCount(); // Fetch initial request count
   
     const isFirstLoad = sessionStorage.getItem("firstLoad");
