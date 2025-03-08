@@ -74,22 +74,19 @@ export default function UsersPage() {
     setIsLoading(false);
   };
   
-  // Show persistent toast on mount
   useEffect(() => {
     toast(`Requests used: 0/50`, { id: toastId, duration: Infinity });
-    fetchUsers(); // Fetch users on mount
-  }, []);
-
-  useEffect(() => {
+  
     const isFirstLoad = sessionStorage.getItem("firstLoad");
-
+  
     if (!isFirstLoad) {
-      fetchUsers(true); // Show toast only on first load
+      fetchUsers(true);
       sessionStorage.setItem("firstLoad", "true");
     } else {
-      fetchUsers(false); // Silent fetch after first load
+      fetchUsers(false);
     }
   }, []);
+  
 
 // Validate input on change
 const validateInput = (name: keyof UserFormData, value: string | number) => {
