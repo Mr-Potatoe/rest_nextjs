@@ -38,7 +38,10 @@ export default function UsersPage() {
   const [deleteUserId, setDeleteUserId] = useState<number | null>(null); // Track user for deletion
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false); // Control dialog open state
   const [errors, setErrors] = useState<ValidationErrors>({ name: "", email: "", age: "" });
+  const [isSubmitting, setIsSubmitting] = useState(false); // New loading state
+  const [isDeleting, setIsDeleting] = useState(false); // New loading state
   const toastId = "request-count-toast"; // Unique toast ID
+
 
   const updateRequestCount = async () => {
     try {
@@ -133,70 +136,78 @@ const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       toast.error("All fields are required!");
       return;
     }
-
+  
+    setIsSubmitting(true); // Start loading
+  
     const method = editUser ? "PUT" : "POST";
     const res = await fetch(`/api/users`, {
       method,
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(editUser ? { id: editUser.id, ...formData } : formData),
     });
-
+  
     const data = await res.json(); // Parse API response
-
+  
     if (res.status === 429) {
       toast.error("Daily request limit reached. Try again tomorrow.");
+      setIsSubmitting(false); // Stop loading
       return;
     }
-
+  
     if (res.ok) {
       toast.success(data.message || (editUser ? "User updated!" : "User added!"));
-
+  
       if (!editUser && !data.user) {
-        // 🛑 If API doesn't return user, fetch again
         fetchUsers();
       } else {
-        // ✅ Update UI with correct user object
         setUsers((prevUsers) =>
           editUser
             ? prevUsers.map((user) =>
-              user.id === editUser.id ? { ...user, ...formData } : user
-            ) // Update user
-            : [...prevUsers, data.user] // Use `data.user` instead of `data`
+                user.id === editUser.id ? { ...user, ...formData } : user
+              )
+            : [...prevUsers, data.user]
         );
       }
-
+  
       setEditUser(null);
-      setFormData({ name: "", email: "", age: "" }); // Reset form
-      setIsDialogOpen(false); // ✅ Close dialog after success
+      setFormData({ name: "", email: "", age: "" });
+      setIsDialogOpen(false);
     } else {
-      toast.error(data.error || "Something went wrong!"); // Show error from API
+      toast.error(data.error || "Something went wrong!");
     }
+  
+    setIsSubmitting(false); // Stop loading
   };
 
   const handleDelete = async () => {
     if (!deleteUserId) return;
-
+  
+    setIsDeleting(true); // Start loading
+  
     try {
       const res = await fetch(`/api/users?id=${deleteUserId}`, { method: "DELETE" });
-
+  
       if (res.status === 429) {
         toast.error("Daily request limit reached. Try again tomorrow.");
+        setIsDeleting(false);
         return;
       }
-
+  
       if (!res.ok) throw new Error("Failed to delete user");
-
+  
       const data = await res.json();
       toast.success(data.message);
-
-      setUsers((prevUsers) => prevUsers.filter((user) => user.id !== deleteUserId)); // Update state without reload
-      setIsDeleteDialogOpen(false); // Close dialog
+  
+      setUsers((prevUsers) => prevUsers.filter((user) => user.id !== deleteUserId));
+      setIsDeleteDialogOpen(false);
     } catch (error) {
       console.error("Error deleting user:", error);
       toast.error("Error deleting user. Please try again.");
     }
+  
+    setIsDeleting(false); // Stop loading
   };
-
+  
   // Open delete confirmation dialog
   const confirmDelete = (id: number) => {
     setDeleteUserId(id);
@@ -240,9 +251,17 @@ const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
           {errors.age && <p className="text-red-500 text-sm">{errors.age}</p>}
 
           {/* Add User Button (Disabled if invalid) */}
-          <Button onClick={handleSubmit} disabled={!isFormValid}>
-            Add User
+          <Button onClick={handleSubmit} disabled={!isFormValid || isSubmitting}>
+            {isSubmitting ? (
+              <div className="flex items-center gap-2">
+                <span className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></span>
+                Submitting...
+              </div>
+            ) : (
+              "Add User"
+            )}
           </Button>
+
         </DialogContent>
       </Dialog>
 
@@ -312,9 +331,17 @@ const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
                       {errors.age && <p className="text-red-500 text-sm">{errors.age}</p>}
 
                       {/* Disable button if form is invalid */}
-                      <Button onClick={handleSubmit} disabled={!isFormValid}>
-                        Update User
+                      <Button onClick={handleSubmit} disabled={!isFormValid || isSubmitting}>
+                        {isSubmitting ? (
+                          <div className="flex items-center gap-2">
+                            <span className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></span>
+                            Updating...
+                          </div>
+                        ) : (
+                          "Update User"
+                        )}
                       </Button>
+
                     </DialogContent>
                   </Dialog>
 
@@ -344,9 +371,16 @@ const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
             <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
               Cancel
             </Button>
-            <Button variant="destructive" onClick={handleDelete}>
-              Delete
-            </Button>
+            <Button variant="destructive" onClick={handleDelete} disabled={isDeleting}>
+            {isDeleting ? (
+              <div className="flex items-center gap-2">
+                <span className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></span>
+                Deleting...
+              </div>
+            ) : (
+              "Delete"
+            )}
+          </Button>
           </div>
         </DialogContent>
       </Dialog>
